@@ -51,7 +51,7 @@ if [ "$PING_SUCCESS" -eq 0 ]; then
     exit 1
 fi
 
-#  4. Check if curl is installed (required for public IP detection)
+#  4. Check if curl and pv are installed (for public IP detection and visual info)
 if ! command -v curl >/dev/null 2>&1; then
     echo "curl is not installed. Installing..."
     apt install -y -qq curl >/dev/null 2>&1 || {
@@ -59,6 +59,14 @@ if ! command -v curl >/dev/null 2>&1; then
         exit 1
     }
     echo "curl installed successfully."
+fi
+if ! command -v pv >/dev/null 2>&1; then
+    echo "pv is not installed. Installing..."
+    apt install -y -qq pv >/dev/null 2>&1 || {
+        echo "Error: Failed to install pv. Please run: apt install pv"
+        exit 1
+    }
+    echo "pv installed successfully."
 fi
 
 #  5. Bash version check
@@ -123,25 +131,15 @@ XLXDIR="/xlxd"
 ACCEPT="| [ENTER] to accept..."
 SSL_OK=0
 DEPAPP=(
-git
-git-core
-make
-gcc
-g++
-pv
-sqlite3
-apache2
-php
-libapache2-mod-php
-php-cli
-php-xml
-php-mbstring
-php-curl
-php-sqlite3
-build-essential
-vnstat
-certbot
 python3-certbot-apache
+build-essential
+php
+php-mbstring
+php-sqlite3
+php-curl
+php-xml
+sqlite3
+vnstat
 )
 
 #  11. Color palette
@@ -485,7 +483,7 @@ question_05() {
     echo "$SEPQUE"
     echo ""
     print_red "$ICON_WARN Mandatory"
-    print_wrapped "05. Reflector country name."
+    print_wrapped "05. What's the country of the Reflector?"
     while true; do
         read_or_abort COUNTRY
         if [ -z "$COUNTRY" ]; then
