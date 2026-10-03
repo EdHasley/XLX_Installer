@@ -256,6 +256,19 @@ sudo systemctl restart xlxd.service
 sudo systemctl status xlxd.service
 ```
 
+
+### New Reflector Protocol / Port Manager
+
+After installation, run:
+
+```bash
+sudo reflector-manager
+```
+
+The manager can enable or disable DExtra, DPlus, DCS, XLX interlink, DMR+, DMR/MMDVM, YSF, Icom G3 Terminal, and Yaesu IMRS; change their UDP ports; change the AMBE controller port (default 10100); enable or disable an installed `ambed.service`; and rebuild/restart XLXD so changes take effect. DMR/MMDVM keeps the normal default UDP port 62030 unless you choose another port.
+
+When running more than one reflector behind the same public IP, remember that the matching router port-forward and hotspot/client setting must also use the changed port.
+
 ### Real-time Monitoring
 
 ```bash
