@@ -867,6 +867,53 @@ question_16() {
     echo ""
 }
 
+# Native protocol/port setup for this XLXD build.
+ask_protocol() {
+    local label="$1" enable_var="$2" port_var="$3" default_port="$4"
+    local answer port
+    echo ""
+    echo "$SEPQUE"
+    print_wrapped "$label protocol: enable it? (Y/N)"
+    print_gray "Suggested: Y $ACCEPT"
+    while true; do
+        read_or_abort answer
+        answer=$(echo "${answer:-Y}" | tr '[:lower:]' '[:upper:]')
+        [[ "$answer" == "Y" || "$answer" == "N" ]] && break
+        msg_caution "Please enter Y or N."
+    done
+    printf -v "$enable_var" '%s' "$answer"
+    if [[ "$answer" == "N" ]]; then
+        printf -v "$port_var" '%s' "0"
+        print_yellow "Using: disabled"
+        return
+    fi
+    print_wrapped "$label UDP port. Press ENTER for standard port $default_port."
+    while true; do
+        read_or_abort port
+        port=${port:-$default_port}
+        if [[ "$port" =~ ^[0-9]+$ && "$port" -ge 1 && "$port" -le 65535 ]]; then break; fi
+        msg_caution "Port must be between 1 and 65535."
+    done
+    printf -v "$port_var" '%s' "$port"
+    print_yellow "Using: enabled on UDP $port"
+}
+
+question_17() {
+    echo ""
+    line_type2
+    center_wrap_color $BLUE_BRIGHT "$ICON_INFO PROTOCOL AND PORT CONFIGURATION"
+    print_gray "Press ENTER to keep normal XLXD defaults. Change a port when another reflector already uses it."
+    ask_protocol "DExtra" ENABLE_DEXTRA DEXTRA_PORT_CFG 30001
+    ask_protocol "DPlus" ENABLE_DPLUS DPLUS_PORT_CFG 20001
+    ask_protocol "DCS" ENABLE_DCS DCS_PORT_CFG 30051
+    ask_protocol "XLX interlink" ENABLE_XLX XLX_PORT_CFG 10002
+    ask_protocol "DMR+" ENABLE_DMRPLUS DMRPLUS_PORT_CFG 8880
+    ask_protocol "DMR/MMDVM" ENABLE_DMRMMDVM DMRMMDVM_PORT_CFG 62030
+    ask_protocol "YSF" ENABLE_YSF YSF_PORT_CFG "${YSFPORT:-42000}"
+    ask_protocol "Icom G3 Terminal" ENABLE_G3 G3_DV_PORT_CFG 40000
+    ask_protocol "Yaesu IMRS" ENABLE_IMRS IMRS_PORT_CFG 21110
+    YSFPORT="$YSF_PORT_CFG"
+}
 collect_all_questions() {
     question_01
     question_02
@@ -888,6 +935,7 @@ collect_all_questions() {
     if [[ "$AUTOLINK" -eq 1 ]]; then
         question_16
     fi
+    question_17
 }
 
 # Data input verification
@@ -917,6 +965,8 @@ review_settings() {
     if [[ "$AUTOLINK" -eq 1 ]]; then
         print_wrapped "16. YSF module:          $MODAUTO"
     fi
+    print_wrapped "17. Protocol setup:      configurable"
+    print_wrapped "    DMR/MMDVM:           $ENABLE_DMRMMDVM / UDP $DMRMMDVM_PORT_CFG"
 
     echo ""
 }
@@ -1005,8 +1055,9 @@ while true; do
                     msg_caution "Question 16 is not active."
                 fi
                 ;;
+            17) question_17 ;;
             *)
-                msg_caution "Invalid input. Press [ENTER] to confirm, enter a question number (1-16), or [X] to cancel."
+                msg_caution "Invalid input. Press [ENTER] to confirm, enter a question number (1-17), or [X] to cancel."
                 ;;
         esac
 
@@ -1093,7 +1144,14 @@ fi
 sed -i \
     -e "s|\(NB_OF_MODULES\s*\)[0-9]*|\1$MODQTD|g" \
     -e "s|\(YSF_PORT\s*\)[0-9]*|\1$YSFPORT|g" \
-    -e "s|\(DMRMMDVM_PORT\s*\)[0-9]*|\1 62040|g" \
+    -e "s|\(DEXTRA_PORT\s*\)[0-9]*|\1$DEXTRA_PORT_CFG|g" \
+    -e "s|\(DPLUS_PORT\s*\)[0-9]*|\1$DPLUS_PORT_CFG|g" \
+    -e "s|\(DCS_PORT\s*\)[0-9]*|\1$DCS_PORT_CFG|g" \
+    -e "s|\(XLX_PORT\s*\)[0-9]*|\1$XLX_PORT_CFG|g" \
+    -e "s|\(DMRPLUS_PORT\s*\)[0-9]*|\1$DMRPLUS_PORT_CFG|g" \
+    -e "s|\(DMRMMDVM_PORT\s*\)[0-9]*|\1$DMRMMDVM_PORT_CFG|g" \
+    -e "s|\(G3_DV_PORT\s*\)[0-9]*|\1$G3_DV_PORT_CFG|g" \
+    -e "s|\(IMRS_PORT\s*\)[0-9]*|\1$IMRS_PORT_CFG|g" \
     -e "s|\(YSF_DEFAULT_NODE_TX_FREQ\s*\)[0-9]*|\1$YSFFREQ|g" \
     -e "s|\(YSF_DEFAULT_NODE_RX_FREQ\s*\)[0-9]*|\1$YSFFREQ|g" \
     -e "s|\(YSF_AUTOLINK_ENABLE\s*\)[0-9]*|\1$AUTOLINK|g" \
@@ -1521,7 +1579,7 @@ echo ""
 center_wrap_color $GREEN "Private reflector configuration:"
 echo ""
 center_wrap_color $GREEN "• Public XLX calling-home registration is disabled automatically."
-center_wrap_color $GREEN "• DMR/MMDVM uses UDP port 62040 to avoid conflict with the existing reflector."
+center_wrap_color $GREEN "• DMR/MMDVM defaults to UDP 62030 and may be changed during installation when needed."
 center_wrap_color $GREEN "• PP5PK Dark Dashboard is installed as the permanent dashboard."
 center_wrap_color $GREEN "• Many other settings can be changed in this file: $XLXCONFIG"
 center_wrap_color $GREEN "• More Information about XLX Reflectors: $INFREF"
