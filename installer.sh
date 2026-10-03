@@ -1093,7 +1093,7 @@ fi
 sed -i \
     -e "s|\(NB_OF_MODULES\s*\)[0-9]*|\1$MODQTD|g" \
     -e "s|\(YSF_PORT\s*\)[0-9]*|\1$YSFPORT|g" \
-    -e "s|\(DMRMMDVM_PORT\s*\)[0-9]*|\162040|g" \
+    -e "s|\(DMRMMDVM_PORT\s*\)[0-9]*|\1 62040|g" \
     -e "s|\(YSF_DEFAULT_NODE_TX_FREQ\s*\)[0-9]*|\1$YSFFREQ|g" \
     -e "s|\(YSF_DEFAULT_NODE_RX_FREQ\s*\)[0-9]*|\1$YSFFREQ|g" \
     -e "s|\(YSF_AUTOLINK_ENABLE\s*\)[0-9]*|\1$AUTOLINK|g" \
@@ -1269,7 +1269,7 @@ sed -i \
     -e "s|custom_footnote|$FOOTER_ESC|g" \
     -e "s|your_country|$COUNTRY_ESC|g" \
     -e "s|your_comment|$COMMENT_ESC|g" \
-    -e "s|\(\\$CallingHome\['Active'\][[:space:]]*=[[:space:]]*\)true;|\1false;|g" \
+    -e 's|\(\$CallingHome\['"'"'Active'"'"'\][[:space:]]*=[[:space:]]*\)true;|\1false;|g' \
     -e "s|netact|$NETACT_ESC|g" \
     "$XLXCONFIG" || error_exit "Failed to apply customizations to $XLXCONFIG"
 
