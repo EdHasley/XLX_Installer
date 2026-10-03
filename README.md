@@ -148,7 +148,7 @@ sudo apt install git -y
 
 # Clone repository
 cd /usr/src/
-sudo git clone https://github.com/PP5PK/XLX_Installer.git
+sudo git clone --branch new-reflector --single-branch https://github.com/EdHasley/XLX_Installer.git
 
 # Run installer
 cd XLX_Installer/ && sudo chmod +x *.sh
@@ -364,7 +364,7 @@ Main menu
 | ⏳ **Pending List**        | Track users who have not yet changed their initial password                                                   |
 | 🔄 **SQL Sync**            | Trigger `create_user_db.php` to rebuild the SQLite database from the CSV                                      |
 
-> For full documentation see [REFLECTOR_USER_MANAGER.md](https://github.com/PP5PK/XLX_Installer/blob/master/REFLECTOR_USER_MANAGER.md).
+> For full documentation see [REFLECTOR_USER_MANAGER.md](https://github.com/EdHasley/XLX_Installer/blob/new-reflector/REFLECTOR_USER_MANAGER.md).
 
 ---
 
