@@ -122,7 +122,7 @@ if [ -z "$PUBLIP" ]; then
 fi
 NETACT=$(ip -o addr show up | awk '{print $2}' | grep -v lo | head -n1 || true)
 INFREF="https://xlxbbs.epf.lu/"
-XLXREP="https://github.com/PP5PK/xlxd.git"
+XLXREP="https://github.com/EdHasley/xlxd.git"
 XLXECO="https://github.com/PP5PK/XLXEcho.git"
 XLXDSH="https://github.com/PP5PK/XLX_Dark_Dashboard.git"
 DMRURL="http://xlxapi.rlx.lu/api/exportdmr.php"
@@ -912,6 +912,13 @@ question_17() {
     ask_protocol "YSF" ENABLE_YSF YSF_PORT_CFG "${YSFPORT:-42000}"
     ask_protocol "Icom G3 Terminal" ENABLE_G3 G3_DV_PORT_CFG 40000
     ask_protocol "Yaesu IMRS" ENABLE_IMRS IMRS_PORT_CFG 21110
+    print_wrapped "AMBE controller UDP port. Press ENTER for standard port 10100."
+    while true; do
+        read_or_abort TRANSCODER_PORT_CFG
+        TRANSCODER_PORT_CFG=${TRANSCODER_PORT_CFG:-10100}
+        if [[ "$TRANSCODER_PORT_CFG" =~ ^[0-9]+$ && "$TRANSCODER_PORT_CFG" -ge 1 && "$TRANSCODER_PORT_CFG" -le 65535 ]]; then break; fi
+        msg_caution "Port must be between 1 and 65535."
+    done
     YSFPORT="$YSF_PORT_CFG"
 }
 collect_all_questions() {
@@ -1152,6 +1159,16 @@ sed -i \
     -e "s|\(DMRMMDVM_PORT\s*\)[0-9]*|\1$DMRMMDVM_PORT_CFG|g" \
     -e "s|\(G3_DV_PORT\s*\)[0-9]*|\1$G3_DV_PORT_CFG|g" \
     -e "s|\(IMRS_PORT\s*\)[0-9]*|\1$IMRS_PORT_CFG|g" \
+    -e "s|\(TRANSCODER_PORT\s*\)[0-9]*|\1$TRANSCODER_PORT_CFG|g" \
+    -e "s|\(ENABLE_DEXTRA\s*\)[0-9]*|\1$([ "$ENABLE_DEXTRA" = "Y" ] && echo 1 || echo 0)|g" \
+    -e "s|\(ENABLE_DPLUS\s*\)[0-9]*|\1$([ "$ENABLE_DPLUS" = "Y" ] && echo 1 || echo 0)|g" \
+    -e "s|\(ENABLE_DCS\s*\)[0-9]*|\1$([ "$ENABLE_DCS" = "Y" ] && echo 1 || echo 0)|g" \
+    -e "s|\(ENABLE_XLX\s*\)[0-9]*|\1$([ "$ENABLE_XLX" = "Y" ] && echo 1 || echo 0)|g" \
+    -e "s|\(ENABLE_DMRPLUS\s*\)[0-9]*|\1$([ "$ENABLE_DMRPLUS" = "Y" ] && echo 1 || echo 0)|g" \
+    -e "s|\(ENABLE_DMRMMDVM\s*\)[0-9]*|\1$([ "$ENABLE_DMRMMDVM" = "Y" ] && echo 1 || echo 0)|g" \
+    -e "s|\(ENABLE_YSF\s*\)[0-9]*|\1$([ "$ENABLE_YSF" = "Y" ] && echo 1 || echo 0)|g" \
+    -e "s|\(ENABLE_G3\s*\)[0-9]*|\1$([ "$ENABLE_G3" = "Y" ] && echo 1 || echo 0)|g" \
+    -e "s|\(ENABLE_IMRS\s*\)[0-9]*|\1$([ "$ENABLE_IMRS" = "Y" ] && echo 1 || echo 0)|g" \
     -e "s|\(YSF_DEFAULT_NODE_TX_FREQ\s*\)[0-9]*|\1$YSFFREQ|g" \
     -e "s|\(YSF_DEFAULT_NODE_RX_FREQ\s*\)[0-9]*|\1$YSFFREQ|g" \
     -e "s|\(YSF_AUTOLINK_ENABLE\s*\)[0-9]*|\1$AUTOLINK|g" \
@@ -1378,6 +1395,10 @@ fi
 if [ -d /xlxd/users_db ]; then
     find /xlxd/users_db -type f -name '*.sh' -exec chmod 755 {} \;
 fi
+
+# Install New Reflector protocol/port manager.
+cp "$XLXINS/templates/reflector_protocol_manager.sh" /usr/local/bin/reflector-manager || error_exit "Failed to install reflector manager"
+chmod 755 /usr/local/bin/reflector-manager
 
 # Creates daily update of users.db using systemd timer
 echo "Creating user_db update service..."
