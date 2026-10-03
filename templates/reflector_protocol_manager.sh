@@ -22,7 +22,7 @@ show_status(){
   printf "%-3s %-20s %-5s %-8s\n" "#" "Protocol" "Mode" "UDP Port"
   for i in "${!NAMES[@]}"; do printf "%-3s %-20s %-5s %-8s\n" "$((i+1))" "${NAMES[$i]}" "$(mode "${ENABLES[$i]}")" "$(get_define "${PORTS[$i]}")"; done
   printf "%-3s %-20s %-5s %-8s\n" "A" "AMBE controller" "--" "$(get_define TRANSCODER_PORT)"
-  if systemctl is-enabled --quiet ambed.service 2>/dev/null; then echo "AMBED service: ENABLED"; elif systemctl list-unit-files ambed.service >/dev/null 2>&1; then echo "AMBED service: DISABLED"; else echo "AMBED service: NOT INSTALLED"; fi
+  if systemctl cat ambed.service >/dev/null 2>&1; then if systemctl is-enabled --quiet ambed.service 2>/dev/null; then echo "AMBED service: ENABLED"; else echo "AMBED service: DISABLED"; fi; else echo "AMBED service: NOT INSTALLED"; fi
   echo
 }
 
@@ -45,7 +45,7 @@ edit_ambe_port(){
 }
 
 toggle_ambed(){
-  if ! systemctl list-unit-files ambed.service >/dev/null 2>&1; then echo "AMBED service is not installed. Install it first with the AMBED installer."; return; fi
+  if ! systemctl cat ambed.service >/dev/null 2>&1; then echo "AMBED service is not installed. Install it first with the AMBED installer."; return; fi
   if systemctl is-enabled --quiet ambed.service 2>/dev/null; then systemctl disable --now ambed.service; echo "AMBED disabled and stopped."; else systemctl enable --now ambed.service; echo "AMBED enabled and started."; fi
 }
 
