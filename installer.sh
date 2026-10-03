@@ -1066,6 +1066,22 @@ echo ""
 cd "$USRSRC" || error_exit "Failed to change to $USRSRC directory"
 echo "Cloning repository..."
 git clone --depth 1 "$XLXREP" || error_exit "Failed to clone XLX repository"
+
+# Install the local ZUM AMBE3000 device support source before any builds.
+# This intentionally replaces the upstream file with the tested version
+# shipped with this installer.
+ZUM_AMBE_SOURCE="$XLXINS/ambed/cftdidevicedescr.cpp"
+ZUM_AMBE_TARGET="$USRSRC/xlxd/ambed/cftdidevicedescr.cpp"
+if [ ! -f "$ZUM_AMBE_SOURCE" ]; then
+    error_exit "ZUM AMBE3000 support file not found: $ZUM_AMBE_SOURCE"
+fi
+if [ ! -d "$USRSRC/xlxd/ambed" ]; then
+    error_exit "XLXD ambed source directory not found: $USRSRC/xlxd/ambed"
+fi
+cp -f "$ZUM_AMBE_SOURCE" "$ZUM_AMBE_TARGET" \
+    || error_exit "Failed to install ZUM AMBE3000 device support source"
+msg_success "ZUM AMBE3000 device support source installed."
+
 cd "$USRSRC/xlxd/src" || error_exit "Failed to change to xlxd/src directory"
 make clean || error_exit "Failed to run 'make clean'. Check the Makefile and build environment."
 echo "Seeding customizations..."
@@ -1077,6 +1093,7 @@ fi
 sed -i \
     -e "s|\(NB_OF_MODULES\s*\)[0-9]*|\1$MODQTD|g" \
     -e "s|\(YSF_PORT\s*\)[0-9]*|\1$YSFPORT|g" \
+    -e "s|\(DMRMMDVM_PORT\s*\)[0-9]*|\162040|g" \
     -e "s|\(YSF_DEFAULT_NODE_TX_FREQ\s*\)[0-9]*|\1$YSFFREQ|g" \
     -e "s|\(YSF_DEFAULT_NODE_RX_FREQ\s*\)[0-9]*|\1$YSFFREQ|g" \
     -e "s|\(YSF_AUTOLINK_ENABLE\s*\)[0-9]*|\1$AUTOLINK|g" \
@@ -1252,6 +1269,7 @@ sed -i \
     -e "s|custom_footnote|$FOOTER_ESC|g" \
     -e "s|your_country|$COUNTRY_ESC|g" \
     -e "s|your_comment|$COMMENT_ESC|g" \
+    -e "s|\(\\$CallingHome\['Active'\][[:space:]]*=[[:space:]]*\)true;|\1false;|g" \
     -e "s|netact|$NETACT_ESC|g" \
     "$XLXCONFIG" || error_exit "Failed to apply customizations to $XLXCONFIG"
 
@@ -1325,7 +1343,8 @@ systemctl daemon-reload || error_exit "Failed to reload systemd daemon"
 systemctl stop apache2 >/dev/null 2>&1 || true
 systemctl start apache2 >/dev/null 2>&1 || error_exit "Failed to start Apache"
 echo ""
-msg_success "Dashboard successfully installed!"
+msg_success "PP5PK Dark Dashboard successfully installed as the only dashboard."
+msg_success "Public XLX calling-home registration is disabled for this reflector."
 echo ""
 
 # SSL install
@@ -1499,10 +1518,12 @@ line_type2
 echo ""
 center_wrap_color $GREEN "Your Reflector $XRFNUM is now installed and running!"
 echo ""
-center_wrap_color $GREEN "For Public Reflectors:"
+center_wrap_color $GREEN "Private reflector configuration:"
 echo ""
-center_wrap_color $GREEN "• If your XLX number is available it's expected to be listed on the public list shortly, typically within an hour. If you don't want the reflector to be published just set callinghome to [false] in the main configuration file: $XLXCONFIG."
-center_wrap_color $GREEN "• Many other settings can be changed in this file."
+center_wrap_color $GREEN "• Public XLX calling-home registration is disabled automatically."
+center_wrap_color $GREEN "• DMR/MMDVM uses UDP port 62040 to avoid conflict with the existing reflector."
+center_wrap_color $GREEN "• PP5PK Dark Dashboard is installed as the permanent dashboard."
+center_wrap_color $GREEN "• Many other settings can be changed in this file: $XLXCONFIG"
 center_wrap_color $GREEN "• More Information about XLX Reflectors: $INFREF"
 if [[ "$SSL_OK" -eq 1 ]]; then
     SSLTYPE="https"
