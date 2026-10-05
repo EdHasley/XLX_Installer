@@ -427,6 +427,22 @@ question_01() {
     print_yellow "Using: $XRFNUM"
 }
 
+
+question_01_name() {
+    echo ""
+    echo "$SEPQUE"
+    echo ""
+    print_wrapped "01A. Extended reflector name (display only; does not change the protocol ID)."
+    print_gray "1 to 60 characters. Suggested: $XRFNUM Reflector $ACCEPT"
+    while true; do
+        read_or_abort EXTENDED_NAME
+        EXTENDED_NAME=${EXTENDED_NAME:-"$XRFNUM Reflector"}
+        if [[ -n "$EXTENDED_NAME" && ${#EXTENDED_NAME} -le 60 ]]; then break; fi
+        msg_caution "Extended name must be between 1 and 60 characters."
+    done
+    print_yellow "Using: $EXTENDED_NAME"
+}
+
 question_02() {
     echo ""
     echo "$SEPQUE"
@@ -707,7 +723,7 @@ question_12() {
     if [ "$INSTALL_ECHO" == "Y" ]; then
         MIN_MODULES=5
     fi
-    print_wrapped "12. Number of active modules for the DStar Reflector. ($MIN_MODULES - 26)"
+    print_wrapped "12. Number of active modules for the reflector. ($MIN_MODULES - 26)"
     print_gray "Suggested: 5 $ACCEPT"
     while true; do
         read_or_abort MODQTD
@@ -898,31 +914,61 @@ ask_protocol() {
     print_yellow "Using: enabled on UDP $port"
 }
 
-question_17() {
+question_13_protocols() {
     echo ""
     line_type2
-    center_wrap_color $BLUE_BRIGHT "$ICON_INFO PROTOCOL AND PORT CONFIGURATION"
-    print_gray "Press ENTER to keep normal XLXD defaults. Change a port when another reflector already uses it."
+    center_wrap_color $BLUE_BRIGHT "$ICON_INFO 13. PROTOCOL SELECTION AND PORT CONFIGURATION"
+    print_gray "Disabled protocols do not open sockets. Ports are requested only for enabled protocols."
     ask_protocol "DExtra" ENABLE_DEXTRA DEXTRA_PORT_CFG 30001
     ask_protocol "DPlus" ENABLE_DPLUS DPLUS_PORT_CFG 20001
     ask_protocol "DCS" ENABLE_DCS DCS_PORT_CFG 30051
     ask_protocol "XLX interlink" ENABLE_XLX XLX_PORT_CFG 10002
     ask_protocol "DMR+" ENABLE_DMRPLUS DMRPLUS_PORT_CFG 8880
     ask_protocol "DMR/MMDVM" ENABLE_DMRMMDVM DMRMMDVM_PORT_CFG 62030
-    ask_protocol "YSF" ENABLE_YSF YSF_PORT_CFG "${YSFPORT:-42000}"
+    ask_protocol "YSF" ENABLE_YSF YSF_PORT_CFG 42000
+    if [[ "$ENABLE_YSF" == "Y" ]]; then
+        YSFPORT="$YSF_PORT_CFG"
+        question_14
+        question_15
+        if [[ "$AUTOLINK" -eq 1 ]]; then question_16; fi
+    else
+        YSFPORT=42000
+        YSFFREQ=433125000
+        AUTOLINK_USER=N
+        AUTOLINK=0
+        MODAUTO=""
+    fi
     ask_protocol "Icom G3 Terminal" ENABLE_G3 G3_DV_PORT_CFG 40000
     ask_protocol "Yaesu IMRS" ENABLE_IMRS IMRS_PORT_CFG 21110
-    print_wrapped "AMBE controller UDP port. Press ENTER for standard port 10100."
-    while true; do
-        read_or_abort TRANSCODER_PORT_CFG
-        TRANSCODER_PORT_CFG=${TRANSCODER_PORT_CFG:-10100}
-        if [[ "$TRANSCODER_PORT_CFG" =~ ^[0-9]+$ && "$TRANSCODER_PORT_CFG" -ge 1 && "$TRANSCODER_PORT_CFG" -le 65535 ]]; then break; fi
-        msg_caution "Port must be between 1 and 65535."
-    done
-    YSFPORT="$YSF_PORT_CFG"
 }
+
+question_14_transcoder() {
+    echo ""
+    echo "$SEPQUE"
+    print_wrapped "14. Enable AMBE transcoding? (Y/N)"
+    print_gray "Suggested: N $ACCEPT"
+    while true; do
+        read_or_abort ENABLE_TRANSCODER
+        ENABLE_TRANSCODER=$(echo "${ENABLE_TRANSCODER:-N}" | tr '[:lower:]' '[:upper:]')
+        [[ "$ENABLE_TRANSCODER" == "Y" || "$ENABLE_TRANSCODER" == "N" ]] && break
+        msg_caution "Please enter Y or N."
+    done
+    if [[ "$ENABLE_TRANSCODER" == "Y" ]]; then
+        print_wrapped "AMBE/transcoder UDP port. Press ENTER for standard port 10100."
+        while true; do
+            read_or_abort TRANSCODER_PORT_CFG
+            TRANSCODER_PORT_CFG=${TRANSCODER_PORT_CFG:-10100}
+            if [[ "$TRANSCODER_PORT_CFG" =~ ^[0-9]+$ && "$TRANSCODER_PORT_CFG" -ge 1 && "$TRANSCODER_PORT_CFG" -le 65535 ]]; then break; fi
+            msg_caution "Port must be between 1 and 65535."
+        done
+    else
+        TRANSCODER_PORT_CFG=10100
+    fi
+}
+
 collect_all_questions() {
     question_01
+    question_01_name
     question_02
     question_03
     question_04
@@ -934,15 +980,8 @@ collect_all_questions() {
     question_10
     question_11
     question_12
-    question_13
-    question_14
-    question_15
-
-    # It only calls q16 if Auto-link is enabled.
-    if [[ "$AUTOLINK" -eq 1 ]]; then
-        question_16
-    fi
-    question_17
+    question_13_protocols
+    question_14_transcoder
 }
 
 # Data input verification
@@ -952,8 +991,8 @@ review_settings() {
     center_wrap_color $ORANGE "$ICON_INFO PLEASE REVIEW YOUR SETTINGS:"
     center_wrap_color $YELLOW "================================"
     echo ""
-
-    print_wrapped "01. Reflector ID:        $XRFNUM"
+    print_wrapped "01. Protocol ID:         $XRFNUM"
+    print_wrapped "01A. Extended Name:      $EXTENDED_NAME"
     print_wrapped "02. FQDN:                $XLXDOMAIN"
     print_wrapped "03. E-mail:              $EMAIL"
     print_wrapped "04. Callsign:            $CALLSIGN"
@@ -965,16 +1004,17 @@ review_settings() {
     print_wrapped "10. SSL certification:   $INSTALL_SSL"
     print_wrapped "11. Echo Test:           $INSTALL_ECHO"
     print_wrapped "12. Modules:             $MODQTD"
-    print_wrapped "13. YSF UDP Port:        $YSFPORT"
-    print_wrapped "14. YSF frequency:       $YSFFREQ"
-    print_wrapped "15. YSF Auto-link:       $AUTOLINK_USER"
-
-    if [[ "$AUTOLINK" -eq 1 ]]; then
-        print_wrapped "16. YSF module:          $MODAUTO"
+    print_wrapped "13. Protocols / Ports:"
+    print_wrapped "    DExtra: $ENABLE_DEXTRA  DPlus: $ENABLE_DPLUS  DCS: $ENABLE_DCS  XLX: $ENABLE_XLX"
+    print_wrapped "    DMR+: $ENABLE_DMRPLUS / UDP $DMRPLUS_PORT_CFG"
+    print_wrapped "    DMR/MMDVM: $ENABLE_DMRMMDVM / UDP $DMRMMDVM_PORT_CFG"
+    print_wrapped "    YSF: $ENABLE_YSF"
+    if [[ "$ENABLE_YSF" == "Y" ]]; then
+        print_wrapped "      UDP $YSF_PORT_CFG / Frequency $YSFFREQ / Auto-link $AUTOLINK_USER"
+        if [[ "$AUTOLINK" -eq 1 ]]; then print_wrapped "      Auto-link module $MODAUTO"; fi
     fi
-    print_wrapped "17. Protocol setup:      configurable"
-    print_wrapped "    DMR/MMDVM:           $ENABLE_DMRMMDVM / UDP $DMRMMDVM_PORT_CFG"
-
+    print_wrapped "    G3: $ENABLE_G3  IMRS: $ENABLE_IMRS"
+    print_wrapped "14. AMBE transcoder:     $ENABLE_TRANSCODER / UDP $TRANSCODER_PORT_CFG"
     echo ""
 }
 
@@ -1003,6 +1043,7 @@ while true; do
 
     case "$CONFIRM" in
             1) question_01 ;;
+            1A|01A) question_01_name ;;
             2) question_02 ;;
             3) question_03 ;;
             4) question_04 ;;
@@ -1041,30 +1082,10 @@ while true; do
                     fi
                 fi
                 ;;
-            13) question_13 ;;
-            14) question_14 ;;
-            15)
-                OLD_AUTOLINK="$AUTOLINK"
-                question_15
-
-                if [[ "$OLD_AUTOLINK" -eq 0 && "$AUTOLINK" -eq 1 ]]; then
-                    question_16
-                fi
-
-                if [[ "$OLD_AUTOLINK" -eq 1 && "$AUTOLINK" -eq 0 ]]; then
-                    unset MODAUTO
-                fi
-                ;;
-            16)
-                if [[ "$AUTOLINK" -eq 1 ]]; then
-                    question_16
-                else
-                    msg_caution "Question 16 is not active."
-                fi
-                ;;
-            17) question_17 ;;
+            13) question_13_protocols ;;
+            14) question_14_transcoder ;;
             *)
-                msg_caution "Invalid input. Press [ENTER] to confirm, enter a question number (1-17), or [X] to cancel."
+                msg_caution "Invalid input. Press [ENTER] to confirm, enter a question number (1-14 or 01A), or [X] to cancel."
                 ;;
         esac
 
@@ -1269,7 +1290,7 @@ MODLIST_ESC=$(escape_sed "$MODLIST")
 
 sed -i "s|#address|address $PUBLIP_ESC|g" "$TERMXLX" || error_exit "Failed to apply address to $TERMXLX"
 sed -i "s|#modules|modules $MODLIST_ESC|g" "$TERMXLX" || error_exit "Failed to apply modules to $TERMXLX"
-cp "$USRSRC/xlxd/scripts/xlxd.service" /etc/systemd/system/ || error_exit "Failed to copy xlxd.service"
+cp "$XLXINS/templates/xlxd.service" /etc/systemd/system/ || error_exit "Failed to copy xlxd.service"
 chmod 644 /etc/systemd/system/xlxd.service
 
 XRFNUM_ESC=$(escape_sed "$XRFNUM")
