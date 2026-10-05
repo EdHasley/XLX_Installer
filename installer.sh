@@ -117,6 +117,7 @@ cli_visual_unicode.txt
 nftables.conf
 reset_permissions.sh
 uninstaller.sh
+xlxd.service
 xlx_log.service
 xlx_log.sh
 xlx_logrotate.conf
@@ -1209,7 +1210,7 @@ MODLIST_ESC=$(escape_sed "$MODLIST")
 
 sed -i "s|#address|address $PUBLIP_ESC|g" "$TERMXLX" || error_exit "Failed to apply address to $TERMXLX"
 sed -i "s|#modules|modules $MODLIST_ESC|g" "$TERMXLX" || error_exit "Failed to apply modules to $TERMXLX"
-cp "$USRSRC/xlxd/scripts/xlxd.service" /etc/systemd/system/ || error_exit "Failed to copy xlxd.service"
+cp "$XLXINS/templates/xlxd.service" /etc/systemd/system/ || error_exit "Failed to copy xlxd.service"
 chmod 644 /etc/systemd/system/xlxd.service
 
 XRFNUM_ESC=$(escape_sed "$XRFNUM")
