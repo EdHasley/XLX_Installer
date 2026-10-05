@@ -1216,6 +1216,74 @@ echo ""
 make || error_exit "Compilation failed. Check build dependencies and logs."
 make install || error_exit "Installation of compiled binaries failed"
 
+# Build/install AMBED only when transcoding is enabled.
+if [[ "$ENABLE_TRANSCODER" == "Y" ]]; then
+    line_type1
+    echo ""
+    center_wrap_color $BLUE_BRIGHT "$ICON_INFO INSTALLING AMBE TRANSCODER..."
+    center_wrap_color $BLUE "============================"
+    echo ""
+
+    AMBED_SRC="$USRSRC/xlxd/ambed"
+    AMBED_MAIN="$AMBED_SRC/main.h"
+    [ -f "$AMBED_MAIN" ] || error_exit "AMBED configuration file not found: $AMBED_MAIN"
+
+    # Keep XLXD and AMBED on the same selected UDP port.
+    sed -i -E "s|^#define[[:space:]]+TRANSCODER_PORT[[:space:]]+[0-9]+|#define TRANSCODER_PORT                 $TRANSCODER_PORT_CFG|" "$AMBED_MAIN" \
+        || error_exit "Failed to set AMBED UDP port to $TRANSCODER_PORT_CFG"
+
+    # Install FTDI D2XX driver if it is not already present.
+    if [ ! -e /usr/local/lib/libftd2xx.so ]; then
+        ARC=$(uname -m)
+        case "$ARC" in
+            x86_64) FTDI_URL="https://ftdichip.com/wp-content/uploads/2025/11/libftd2xx-linux-x86_64-1.4.34.tgz"; FTDI_TGZ="libftd2xx-linux-x86_64-1.4.34.tgz" ;;
+            i386|i686) FTDI_URL="https://ftdichip.com/wp-content/uploads/2025/11/libftd2xx-linux-x86_32-1.4.34.tgz"; FTDI_TGZ="libftd2xx-linux-x86_32-1.4.34.tgz" ;;
+            armv7l) FTDI_URL="https://ftdichip.com/wp-content/uploads/2025/11/libftd2xx-linux-arm-v7-hf-1.4.34.tgz"; FTDI_TGZ="libftd2xx-linux-arm-v7-hf-1.4.34.tgz" ;;
+            *) error_exit "Unsupported CPU architecture for automatic FTDI D2XX install: $ARC" ;;
+        esac
+        FTDI_WORK="/tmp/ftdi-d2xx-$"
+        mkdir -p "$FTDI_WORK"
+        cd "$FTDI_WORK"
+        wget -q "$FTDI_URL" -O "$FTDI_TGZ" || error_exit "Failed to download FTDI D2XX driver"
+        tar xfz "$FTDI_TGZ" || error_exit "Failed to extract FTDI D2XX driver"
+        FTDI_LIB=$(find . -type f -name 'libftd2xx.so.1.4.34' | head -n1)
+        [ -n "$FTDI_LIB" ] || error_exit "FTDI D2XX library not found after extraction"
+        cp "$FTDI_LIB" /usr/local/lib/libftd2xx.so.1.4.34 || error_exit "Failed to install FTDI D2XX library"
+        chmod 0755 /usr/local/lib/libftd2xx.so.1.4.34
+        ln -sf /usr/local/lib/libftd2xx.so.1.4.34 /usr/local/lib/libftd2xx.so
+        ldconfig
+        rm -rf "$FTDI_WORK"
+    fi
+
+    cd "$AMBED_SRC" || error_exit "Failed to enter AMBED source directory"
+    make clean || error_exit "AMBED make clean failed"
+    make || error_exit "AMBED compilation failed"
+    make install || error_exit "AMBED installation failed"
+    [ -x /ambed/ambed ] || error_exit "AMBED binary was not installed at /ambed/ambed"
+
+    cat > /etc/systemd/system/ambed.service <<EOF
+[Unit]
+Description=AMBED Transcoder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=-/sbin/rmmod ftdi_sio
+ExecStartPre=-/sbin/rmmod usbserial
+ExecStart=/ambed/ambed 127.0.0.1
+User=root
+Group=root
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    chmod 644 /etc/systemd/system/ambed.service
+    msg_success "AMBED compiled and installed for UDP $TRANSCODER_PORT_CFG."
+fi
+
 if [ -e "$XLXDIR/xlxd" ]; then
     echo ""
     msg_success "COMPILATION SUCCESSFUL!!!"
@@ -1439,6 +1507,13 @@ mv /xlxd/users_db/update_db.sh /usr/local/bin/ || error_exit "Failed to move upd
 # daemon-reload must run before starting all services
 systemctl daemon-reload || error_exit "Failed to reload systemd daemon"
 
+if [[ "$ENABLE_TRANSCODER" == "Y" ]]; then
+    systemctl enable --now ambed.service >> "$LOGFILE" 2>&1 || error_exit "Failed to enable/start ambed.service. Check: systemctl status ambed.service"
+    sleep 2
+    systemctl is-active --quiet ambed.service || error_exit "AMBED service did not remain active. Check: journalctl -u ambed.service"
+    msg_success "AMBED service is running on UDP $TRANSCODER_PORT_CFG."
+fi
+
 #  Start apache service
 systemctl stop apache2 >/dev/null 2>&1 || true
 systemctl start apache2 >/dev/null 2>&1 || error_exit "Failed to start Apache"
@@ -1590,6 +1665,16 @@ if [ -f "$WEBDIR/index.php" ]; then
     msg_success "Dashboard files found"
 else
     msg_error "Dashboard files not found at expected location"
+fi
+
+# Check AMBED service if transcoding was selected
+if [[ "$ENABLE_TRANSCODER" == "Y" ]]; then
+    if systemctl is-active --quiet ambed.service; then
+        msg_success "AMBED transcoder service is running"
+    else
+        msg_error "AMBED transcoder service is not running"
+        VALIDATION_FAILED=1
+    fi
 fi
 
 # Check if echo service is running (if installed)
