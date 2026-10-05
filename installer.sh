@@ -107,6 +107,38 @@ SEPQUE="_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_"
 
 #  10. Parameter definition
 XLXINS=$(pwd)
+
+# Bootstrap support files when installer.sh was downloaded by itself.
+# This keeps the documented one-file curl installation method working.
+TEMPLATE_BASE_URL="https://raw.githubusercontent.com/EdHasley/XLX_Installer/master/templates"
+REQUIRED_TEMPLATES=(
+apache.tbd.conf
+cli_visual_unicode.txt
+nftables.conf
+reset_permissions.sh
+uninstaller.sh
+xlx_log.service
+xlx_log.sh
+xlx_logrotate.conf
+)
+
+mkdir -p "$XLXINS/templates" || {
+    echo "ERROR: Failed to create $XLXINS/templates"
+    exit 1
+}
+
+for template_file in "${REQUIRED_TEMPLATES[@]}"; do
+    if [ ! -s "$XLXINS/templates/$template_file" ]; then
+        echo "Downloading required support file: $template_file"
+        curl -fsSL "$TEMPLATE_BASE_URL/$template_file" -o "$XLXINS/templates/$template_file" || {
+            echo "ERROR: Failed to download required support file: $template_file"
+            exit 1
+        }
+    fi
+done
+
+chmod +x "$XLXINS/templates/uninstaller.sh" "$XLXINS/templates/reset_permissions.sh" "$XLXINS/templates/xlx_log.sh" 2>/dev/null || true
+
 USRSRC="/usr/src"
 HOMEIP=$(hostname -I 2>/dev/null | awk '{print $1}')
 # If the first address is the loopback, the real LAN/WAN address (if any)
